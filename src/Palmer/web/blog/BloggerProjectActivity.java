@@ -7,27 +7,40 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.NoSuchAlgorithmException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.os.Bundle;
 import android.text.Html;
+import android.text.Spannable;
+import android.text.SpannableString;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.method.LinkMovementMethod;
 import android.text.method.ScrollingMovementMethod;
+import android.text.style.ClickableSpan;
+import android.text.style.URLSpan;
 import android.text.util.Linkify;
+import android.text.util.Linkify.TransformFilter;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class BloggerProjectActivity extends Activity {
 	TextView tv1;
 	EditText edt1;
 	Button btn1;
 	static String url = "https://www.googleapis.com/blogger/v3/blogs/byurl?url=http://strandedhhj.blogspot.com/";
+	String displayString;
 	private static String apiKey = "&key=AIzaSyDZOJTqANF0snQb7kfThiqjXM9PAeQaqH4";
 	private static String blogID;
 
@@ -38,15 +51,17 @@ public class BloggerProjectActivity extends Activity {
 		setContentView(R.layout.main);
 
 		tv1 = (TextView) this.findViewById(R.id.display);
-
+		displayString = this.getString(R.string.hello);
 		try {
 			ProcessResponse(RequestSite());
 		} catch (Exception e) {
 			Log.v("Exception google search", "Exception:" + e.getMessage());
 		}
 		tv1.setTextSize(getResources().getDimension(R.dimen.small));
+		//Linkify.addLinks(tv1, Linkify.ALL);
 		tv1.setMovementMethod(LinkMovementMethod.getInstance());
-		Linkify.addLinks(tv1, Linkify.WEB_URLS);
+		
+		
 	}
 
 	/**
@@ -59,7 +74,7 @@ public class BloggerProjectActivity extends Activity {
 	 */
 	protected void ProcessResponse(String resp) throws IllegalStateException,
 			IOException, JSONException, NoSuchAlgorithmException {
-		StringBuilder sb = new StringBuilder();
+		SpannableStringBuilder sb = new SpannableStringBuilder();
 		Log.v("blogData", "blogData result:" + resp);
 		JSONObject mResponseObject = new JSONObject(resp);
 		String blogTitle = mResponseObject.getString("name");
@@ -73,8 +88,24 @@ public class BloggerProjectActivity extends Activity {
 		sb.append("\n");
 		sb.append("Number of Posts: " + numPosts + "\n");
 		sb.append(ProcessPosts(requestPosts(postSL)));
-		sb.append(blogDes);
-		tv1.setText(sb.toString());
+		//sb.append(blogDes);
+		URLSpan[] spans = sb.getSpans(0, sb.length(), URLSpan.class);
+		// Add onClick listener for each of URLSpan object
+		for (final URLSpan span : spans) {
+		    int start = sb.getSpanStart(span);
+		    int end = sb.getSpanEnd(span);
+		 
+		    sb.removeSpan(span);
+		    sb.setSpan(new ClickableSpan()
+		    {
+		    @Override
+		    public void onClick(View widget) {
+		                Toast tst = Toast.makeText(getBaseContext(), "text", Toast.LENGTH_SHORT);
+		                tst.show();
+		    }      
+		    }, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+		}
+		tv1.setText(sb);
 		tv1.setLinksClickable(true);
 	}
 
@@ -129,10 +160,12 @@ public class BloggerProjectActivity extends Activity {
 		return response.toString();
 	}
 
-	protected String ProcessPosts(String postResponse)
+	@SuppressLint("ParserError")
+	protected SpannableStringBuilder ProcessPosts(String postResponse)
 			throws IllegalStateException, IOException, JSONException,
 			NoSuchAlgorithmException {
-		StringBuilder sb = new StringBuilder();
+		SpannableStringBuilder sb = new SpannableStringBuilder();
+		
 		Log.v("postData", "postData result:" + postResponse);
 		JSONObject mResponseObject = new JSONObject(postResponse);
 		JSONArray array = mResponseObject.getJSONArray("items");
@@ -141,13 +174,18 @@ public class BloggerProjectActivity extends Activity {
 			String title = array.getJSONObject(i).getString("title");
 			title = "<i>" + title + "</i>";
 			String urllink = array.getJSONObject(i).getString("url");
-
+			urllink = "<a href=\"" + urllink + "\">View Post</a>";
 			sb.append(Html.fromHtml(title));
 			sb.append("\n");
-			sb.append(urllink);
+			//int startSpan = sb.length();
+			sb.append(Html.fromHtml(urllink));
+			//int endSpan = sb.length();
+			//sb.setSpan(clickspan, startSpan, endSpan, Spannable.SPAN_INCLUSIVE_INCLUSIVE);
 			sb.append("\n\n");
 		}
-		return sb.toString();
+		
+		
+		return sb;
 	}
 
 }
