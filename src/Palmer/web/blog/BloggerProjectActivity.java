@@ -16,6 +16,7 @@ import org.json.JSONObject;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.Html;
 import android.text.Spannable;
@@ -35,6 +36,11 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+/**
+ * 
+ * @author Palmer
+ *
+ */
 public class BloggerProjectActivity extends Activity {
 	TextView tv1;
 	EditText edt1;
@@ -43,6 +49,7 @@ public class BloggerProjectActivity extends Activity {
 	String displayString;
 	private static String apiKey = "&key=AIzaSyDZOJTqANF0snQb7kfThiqjXM9PAeQaqH4";
 	private static String blogID;
+	private String spostSL;
 
 	/** Called when the activity is first created. */
 	@Override
@@ -65,7 +72,7 @@ public class BloggerProjectActivity extends Activity {
 	}
 
 	/**
-	 * 
+	 * ProcessReponse - Processes the response sent by the Google Server
 	 * @param resp
 	 * @throws IllegalStateException
 	 * @throws IOException
@@ -78,9 +85,9 @@ public class BloggerProjectActivity extends Activity {
 		Log.v("blogData", "blogData result:" + resp);
 		JSONObject mResponseObject = new JSONObject(resp);
 		String blogTitle = mResponseObject.getString("name");
-		blogID = mResponseObject.getString("id");
-		String blogDes = mResponseObject.getString("description");
-		String blogURL = mResponseObject.getString("url");
+//		blogID = mResponseObject.getString("id");
+//		String blogDes = mResponseObject.getString("description");
+//		String blogURL = mResponseObject.getString("url");
 		JSONObject blogPosts = mResponseObject.getJSONObject("posts");
 		String numPosts = blogPosts.getString("totalItems");
 		String postSL = blogPosts.getString("selfLink");
@@ -94,14 +101,20 @@ public class BloggerProjectActivity extends Activity {
 		for (final URLSpan span : spans) {
 		    int start = sb.getSpanStart(span);
 		    int end = sb.getSpanEnd(span);
+		    spostSL = span.getURL();
 		 
+		    
 		    sb.removeSpan(span);
 		    sb.setSpan(new ClickableSpan()
 		    {
 		    @Override
 		    public void onClick(View widget) {
-		                Toast tst = Toast.makeText(getBaseContext(), "text", Toast.LENGTH_SHORT);
-		                tst.show();
+		                Intent viewPost = new Intent(getBaseContext(), PostActivity.class);
+		                
+		                //passing post information to viewPost activity
+		                viewPost.putExtra("postLink", spostSL);
+		                viewPost.putExtra("apiKey", apiKey);
+		                startActivity(viewPost);
 		    }      
 		    }, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 		}
@@ -138,12 +151,22 @@ public class BloggerProjectActivity extends Activity {
 		return response.toString();
 	}
 
+	/**
+	 * requestPosts - Requests a list of posts from the Google Server
+	 * @param selfLink
+	 * @return
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	protected String requestPosts(String selfLink)
 			throws MalformedURLException, IOException {
 
+		//add the apiKey to the end of the url
 		String newFeed = selfLink + "?" + apiKey;
 		StringBuilder response = new StringBuilder();
 		Log.v("gsearch", "gsearch url:" + newFeed);
+		
+		//create the url
 		URL url = new URL(newFeed);
 
 		HttpURLConnection httpconn = (HttpURLConnection) url.openConnection();
@@ -173,7 +196,7 @@ public class BloggerProjectActivity extends Activity {
 			Log.v("result", i + "] " + array.get(i).toString());
 			String title = array.getJSONObject(i).getString("title");
 			title = "<i>" + title + "</i>";
-			String urllink = array.getJSONObject(i).getString("url");
+			String urllink = array.getJSONObject(i).getString("selfLink");
 			urllink = "<a href=\"" + urllink + "\">View Post</a>";
 			sb.append(Html.fromHtml(title));
 			sb.append("\n");
