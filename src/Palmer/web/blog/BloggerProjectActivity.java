@@ -7,46 +7,38 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.NoSuchAlgorithmException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.annotation.SuppressLint;
-import android.app.Activity;
-import android.content.Intent;
 import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.FragmentManager;
 import android.text.Html;
-import android.text.Spannable;
-import android.text.SpannableString;
-import android.text.SpannableStringBuilder;
-import android.text.Spanned;
-import android.text.method.LinkMovementMethod;
-import android.text.method.ScrollingMovementMethod;
-import android.text.style.ClickableSpan;
-import android.text.style.URLSpan;
-import android.text.util.Linkify;
-import android.text.util.Linkify.TransformFilter;
 import android.util.Log;
-import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.widget.SimpleAdapter;
 
 /**
  * 
  * @author Palmer
  *
  */
-public class BloggerProjectActivity extends Activity {
-	TextView tv1;
-	EditText edt1;
-	Button btn1;
+public class BloggerProjectActivity extends FragmentActivity {
+	private FragmentManager fm;
+	private SimpleAdapter postAdapter;
+	private ArrayList<HashMap<String,String>> posts;
+	private EditText edt1;
+	private Button btn1;
 	static String url = "https://www.googleapis.com/blogger/v3/blogs/byurl?url=http://strandedhhj.blogspot.com/";
-	String displayString;
+	private String displayString;
 	private static String apiKey = "&key=AIzaSyDZOJTqANF0snQb7kfThiqjXM9PAeQaqH4";
 	private static String blogID;
 	private String spostSL;
@@ -57,17 +49,24 @@ public class BloggerProjectActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 
-		tv1 = (TextView) this.findViewById(R.id.display);
-		displayString = this.getString(R.string.hello);
+		fm = this.getSupportFragmentManager();
+		Fragment frag = fm.findFragmentById(R.id.ListPostFragment);
+		listpost lp = (listpost)frag;
+		
+		posts = new ArrayList<HashMap<String,String>>();
+		postAdapter = new SimpleAdapter(this, posts, android.R.layout.two_line_list_item, 
+				new String[]{"Posts","Descriptions"}, new int[]{android.R.id.text1, android.R.id.text2} );
+		lp.setListAdapter(postAdapter);
 		try {
 			ProcessResponse(RequestSite());
 		} catch (Exception e) {
 			Log.v("Exception google search", "Exception:" + e.getMessage());
 		}
+		/*
 		tv1.setTextSize(getResources().getDimension(R.dimen.small));
 		//Linkify.addLinks(tv1, Linkify.ALL);
 		tv1.setMovementMethod(LinkMovementMethod.getInstance());
-		
+		*/
 		
 	}
 
@@ -81,21 +80,18 @@ public class BloggerProjectActivity extends Activity {
 	 */
 	protected void ProcessResponse(String resp) throws IllegalStateException,
 			IOException, JSONException, NoSuchAlgorithmException {
-		SpannableStringBuilder sb = new SpannableStringBuilder();
+		
 		Log.v("blogData", "blogData result:" + resp);
 		JSONObject mResponseObject = new JSONObject(resp);
-		String blogTitle = mResponseObject.getString("name");
-//		blogID = mResponseObject.getString("id");
-//		String blogDes = mResponseObject.getString("description");
-//		String blogURL = mResponseObject.getString("url");
+		
+		//get the post data from the response
 		JSONObject blogPosts = mResponseObject.getJSONObject("posts");
-		String numPosts = blogPosts.getString("totalItems");
+		
 		String postSL = blogPosts.getString("selfLink");
-		sb.append(blogTitle);
-		sb.append("\n");
-		sb.append("Number of Posts: " + numPosts + "\n");
-		sb.append(ProcessPosts(requestPosts(postSL)));
-		//sb.append(blogDes);
+		
+		//retrieve the post response data
+		ProcessPosts(requestPosts(postSL));
+		/*
 		URLSpan[] spans = sb.getSpans(0, sb.length(), URLSpan.class);
 		// Add onClick listener for each of URLSpan object
 		for (final URLSpan span : spans) {
@@ -103,13 +99,14 @@ public class BloggerProjectActivity extends Activity {
 		    int end = sb.getSpanEnd(span);
 		    spostSL = span.getURL();
 		 
+		    //sb.removeSpan(span);
 		    
-		    sb.removeSpan(span);
 		    sb.setSpan(new ClickableSpan()
 		    {
 		    @Override
 		    public void onClick(View widget) {
 		                Intent viewPost = new Intent(getBaseContext(), PostActivity.class);
+		                //get the item that has been clicked
 		                
 		                //passing post information to viewPost activity
 		                viewPost.putExtra("postLink", spostSL);
@@ -118,8 +115,8 @@ public class BloggerProjectActivity extends Activity {
 		    }      
 		    }, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 		}
-		tv1.setText(sb);
-		tv1.setLinksClickable(true);
+		*/
+		
 	}
 
 	/**
@@ -184,31 +181,25 @@ public class BloggerProjectActivity extends Activity {
 	}
 
 	@SuppressLint("ParserError")
-	protected SpannableStringBuilder ProcessPosts(String postResponse)
+	protected void ProcessPosts(String postResponse)
 			throws IllegalStateException, IOException, JSONException,
 			NoSuchAlgorithmException {
-		SpannableStringBuilder sb = new SpannableStringBuilder();
-		
+	//	SpannableStringBuilder sb = new SpannableStringBuilder();
+		HashMap<String, String> item;
 		Log.v("postData", "postData result:" + postResponse);
 		JSONObject mResponseObject = new JSONObject(postResponse);
 		JSONArray array = mResponseObject.getJSONArray("items");
+		
 		for (int i = 0; i < array.length(); i++) {
-			Log.v("result", i + "] " + array.get(i).toString());
-			String title = array.getJSONObject(i).getString("title");
-			title = "<i>" + title + "</i>";
-			String urllink = array.getJSONObject(i).getString("selfLink");
-			urllink = "<a href=\"" + urllink + "\">View Post</a>";
-			sb.append(Html.fromHtml(title));
-			sb.append("\n");
-			//int startSpan = sb.length();
-			sb.append(Html.fromHtml(urllink));
-			//int endSpan = sb.length();
-			//sb.setSpan(clickspan, startSpan, endSpan, Spannable.SPAN_INCLUSIVE_INCLUSIVE);
-			sb.append("\n\n");
+			item = new HashMap<String, String>();
+			JSONArray labels = array.getJSONObject(i).getJSONArray("labels");
+			item.put("Posts", array.getJSONObject(i).getString("title"));
+			item.put("Descriptions", Html.fromHtml(array.getJSONObject(i).getString("content")).toString().substring(0, 60).concat("..."));
+			posts.add(item);
+			postAdapter.notifyDataSetChanged();
 		}
 		
 		
-		return sb;
 	}
 
 }
